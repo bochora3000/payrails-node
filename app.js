@@ -51,6 +51,7 @@ app.get("/client-configurations", async (req, res) => {
     const clientConfigurations = JSON.parse(decodedData);
 
     // Sending configuration back to frontend
+    console.log(clientConfigurations);
     res.json(clientConfigurations);
   } catch (error) {
     console.error("Error fetching client configurations:", error);
@@ -60,9 +61,10 @@ app.get("/client-configurations", async (req, res) => {
 
 // When client hits this route, I get prepare data for proper encoding, encode and tokenize. Lastly i send back tokenization result to client.
 app.post("/tokenize", async (req, res) => {
-  const { cardData, publicKey } = req.body;
+  const { cardData, publicKey, token } = req.body;
   console.log(cardData);
   console.log(publicKey);
+  console.log(token);
 
   // Function to convert raw public key received from Payrails to proper PEM key
   function formatPublicKeyToPEM(publicKey) {
@@ -77,12 +79,14 @@ app.post("/tokenize", async (req, res) => {
     const pemContent = chunks.join("\n");
     const pemKey = `${pemHeader}\n${pemContent}\n${pemFooter}`;
 
+    console.log(typeof pemKey);
     return pemKey;
   }
 
   try {
     // Converting publicKey and storing in variable
     const pemFormattedKey = formatPublicKeyToPEM(publicKey);
+    console.log(pemFormattedKey);
 
     // Prepare payment details as one object with all needed data including holderReference
     const dataToEncrypt = {
@@ -110,6 +114,8 @@ app.post("/tokenize", async (req, res) => {
       .update(JSON.stringify(dataToEncrypt))
       .final();
 
+    console.log(encrypted);
+
     // I am preparing tokenization payload. I built this based on provided documentation
     const tokenizationPayload = {
       storeInstrument: true, //
@@ -123,6 +129,7 @@ app.post("/tokenize", async (req, res) => {
       accept: "application/json",
       "x-idempotency-key": process.env.X_IDEMPOTENCY_KEY,
       "content-type": "application/json",
+      Authorization: `Bearer ${token}`,
     };
 
     const tokenizationUrl =

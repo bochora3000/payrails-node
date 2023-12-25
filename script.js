@@ -30,6 +30,8 @@ document
 
       // Retrieve the public key for tokenization
       const publicKey = configData.tokenization.publicKey;
+      const token = configData.token;
+      console.log(token);
 
       // Send card data and public key for tokenization
       const tokenizeResponse = await fetch("http://localhost:3000/tokenize", {
@@ -40,6 +42,7 @@ document
         body: JSON.stringify({
           cardData,
           publicKey,
+          token,
         }),
       });
 
