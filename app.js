@@ -105,15 +105,19 @@ app.post("/tokenize", async (req, res) => {
     // "pem": Indicates the format of the key being added (in this case, PEM)
     let key = await keystore.add(pemFormattedKey, "pem");
 
-    // Simulate export & re-import of key to ensure proper serialization
-    // I do this as a workaround because i had trouble with serialiation an my code was throwing errors. This solved an issue.
-    key = await jose.JWK.asKey(JSON.parse(JSON.stringify(key.toJSON(true))));
-
     // Finally calling encryption and storing in encrypted
-    const encrypted = await jose.JWE.createEncrypt(key)
+    const encrypted = await jose.JWE.createEncrypt(
+      {
+        format: "compact",
+        fields: {
+          alg: "RSA-OAEP-256",
+          enc: "A256CBC-HS512",
+        },
+      },
+      key
+    )
       .update(JSON.stringify(dataToEncrypt))
       .final();
-
     console.log(encrypted);
 
     // I am preparing tokenization payload. I built this based on provided documentation
@@ -143,6 +147,8 @@ app.post("/tokenize", async (req, res) => {
         headers: tokenizationHeaders,
       }
     );
+
+    console.log(tokenizationResponse);
 
     // Destructuring data that i receive from tokenization enpoint
     const { id, createdAt, updatedAt, holderId, status } =
