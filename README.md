@@ -1,16 +1,26 @@
 # Card Tokenization Application
 
-This application facilitates secure tokenization of card information by integrating with a payment service provider. It allows users to input card details and obtain a tokenized representation for secure transactions.
+This application implements a solution provided by Payrails - [Payrails Product Assessment](https://github.com/bochora3000/payrails-product-assessment).
+
+## Challenge Goal
+
+The goal of the challenge was to create an application for tokenizing cards via Payrails using Client-Side Encryption. It allows users to input card details and obtain a tokenized representation for secure transactions.
+
+**Note:** This solution deviates from the challenge in the encryption part. In this implementation, encryption of card data occurs on the server-side (app.js) due to encountering blockers with JavaScript-based encryption. As a result, the encryption and tokenization processes are handled on the backend.
 
 ## Table of Contents
 
+- [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
 - [API Endpoints](#api-endpoints)
 - [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
+
+## Prerequisites
+
+Payrails endpoints are being mocked locally for testing purposes. To test the solution, you'll need:
+
+Mockcoon running locally. In order to achieve it follow instructions here -> https://github.com/bochora3000/payrails-product-assessment?tab=readme-ov-file#mockoon
 
 ## Installation
 
@@ -47,6 +57,6 @@ This application facilitates secure tokenization of card information by integrat
 
 Ensure you have the following environment variables set in the `.env` file:
 
-- `CLIENT_ID`: Your client ID for authentication.
-- `API_KEY`: Your API key for authorization.
-- `X_IDEMPOTENCY_KEY`: Key for ensuring idempotent requests.
+- `CLIENT_ID`: Your client ID for authentication. (use whatever you wish from documentation of endpoint)
+- `API_KEY`: Your API key for authorization. (use whatever you wish from documentation of endpoint)
+- `X_IDEMPOTENCY_KEY`: Key for ensuring idempotent requests. (can be anything)
