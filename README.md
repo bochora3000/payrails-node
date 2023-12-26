@@ -32,7 +32,7 @@ Mockcoon running locally. In order to achieve it follow instructions here -> htt
 ## Usage
 
 1. Open `index.html` in a web browser.
-2. Fill in the payment information (card number, expiry, CVV, holder's name).
+2. Fill in the payment information (card number, expiry, CVV, holder's name,etc).
 3. Click on "Tokenize Card" to initiate the tokenization process.
 4. View the tokenization response displayed on the web page.
 
