@@ -2,7 +2,7 @@
 document
   .getElementById("cardForm")
   .addEventListener("submit", async function (event) {
-    event.preventDefault();
+    event.preventDefault(); // Prevent default form submission behavior
 
     try {
       // Fetch configurations from the server
@@ -25,13 +25,13 @@ document
         expiryYear: document.getElementById("expiryYear").value,
         securityCode: document.getElementById("securityCode").value,
         holderName: document.getElementById("holderName").value,
-        holderReference: configData.holderReference,
+        holderReference: configData.holderReference, // Adding holder reference from configuration
       };
 
       // Retrieve the public key for tokenization
       const publicKey = configData.tokenization.publicKey;
-      const token = configData.token;
-      console.log(token);
+      const token = configData.token; // Access token needed for authentication
+      console.log(token); // Logging the retrieved token
 
       // Send card data and public key for tokenization
       const tokenizeResponse = await fetch("http://localhost:3000/tokenize", {
@@ -40,9 +40,9 @@ document
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          cardData,
-          publicKey,
-          token,
+          cardData, // Sending card information
+          publicKey, // Sending the public key for encryption
+          token, // Sending the access token for authentication
         }),
       });
 
@@ -56,12 +56,12 @@ document
 
       // Create HTML content with tokenization response data
       const tokenizationResponseHtml = `
-      <p>ID: ${tokenizationData.id}</p>
-      <p>Created At: ${tokenizationData.createdAt}</p>
-      <p>Updated At: ${tokenizationData.updatedAt}</p>
-      <p>Holder ID: ${tokenizationData.holderId}</p>
-      <p>Status: ${tokenizationData.status}</p>
-    `;
+        <p>ID: ${tokenizationData.id}</p>
+        <p>Created At: ${tokenizationData.createdAt}</p>
+        <p>Updated At: ${tokenizationData.updatedAt}</p>
+        <p>Holder ID: ${tokenizationData.holderId}</p>
+        <p>Status: ${tokenizationData.status}</p>
+      `;
 
       // Update the HTML container with tokenization response
       const responseContainer = document.getElementById("tokenizationResponse");

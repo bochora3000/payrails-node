@@ -1,23 +1,36 @@
-// Load env variables from .env file
 require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
 const jose = require("node-jose");
+const axios = require("axios");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const axios = require("axios");
+// Function to format public key to PEM format
+function formatPublicKeyToPEM(publicKey) {
+  const pemHeader = "-----BEGIN PUBLIC KEY-----";
+  const pemFooter = "-----END PUBLIC KEY-----";
 
-// When client hits this route, I get access token, initialize the client and send data back to client
-app.get("/client-configurations", async (req, res) => {
-  const CLIENT_ID = process.env.CLIENT_ID; // Fetching client_id from .env
-  const API_KEY = process.env.API_KEY; // Fetching api_key from .env
+  const chunks = [];
+  for (let i = 0; i < publicKey.length; i += 64) {
+    chunks.push(publicKey.substr(i, 64));
+  }
+
+  const pemContent = chunks.join("\n");
+  const pemKey = `${pemHeader}\n${pemContent}\n${pemFooter}`;
+
+  return pemKey;
+}
+
+// Function to fetch client configurations
+async function fetchClientConfigurations() {
+  const CLIENT_ID = process.env.CLIENT_ID;
+  const API_KEY = process.env.API_KEY;
 
   try {
-    // Here i start fetching access token
     const url = `http://localhost:3001/auth/token/${CLIENT_ID}`;
     const headers = {
       accept: "application/json",
@@ -27,9 +40,7 @@ app.get("/client-configurations", async (req, res) => {
     const response = await axios.post(url, null, { headers });
     const access_token = response.data.access_token;
 
-    // Here i fetch client configuration
     const clientInitUrl = "http://localhost:3001/merchant/client/init";
-
     const clientHeaders = {
       accept: "application/json",
       "x-api-key": API_KEY,
@@ -45,67 +56,30 @@ app.get("/client-configurations", async (req, res) => {
       headers: clientHeaders,
     });
 
-    // I receive base64 data and I decode it and then parse to JSON
     const base64Data = clientResponse.data.data;
     const decodedData = Buffer.from(base64Data, "base64").toString("utf-8");
     const clientConfigurations = JSON.parse(decodedData);
 
-    // Sending configuration back to frontend
-    console.log(clientConfigurations);
-    res.json(clientConfigurations);
+    return clientConfigurations;
   } catch (error) {
     console.error("Error fetching client configurations:", error);
-    res.status(500).json({ error: "Error fetching configurations" });
+    throw new Error("Error fetching client configurations");
   }
-});
+}
 
-// When client hits this route, I get prepare data for proper encoding, encode and tokenize. Lastly i send back tokenization result to client.
-app.post("/tokenize", async (req, res) => {
-  const { cardData, publicKey, token } = req.body;
-  console.log(cardData);
-  console.log(publicKey);
-  console.log(token);
-
-  // Function to convert raw public key received from Payrails to proper PEM key
-  function formatPublicKeyToPEM(publicKey) {
-    const pemHeader = "-----BEGIN PUBLIC KEY-----";
-    const pemFooter = "-----END PUBLIC KEY-----";
-
-    const chunks = [];
-    for (let i = 0; i < publicKey.length; i += 64) {
-      chunks.push(publicKey.substr(i, 64));
-    }
-
-    const pemContent = chunks.join("\n");
-    const pemKey = `${pemHeader}\n${pemContent}\n${pemFooter}`;
-
-    console.log(typeof pemKey);
-    return pemKey;
-  }
-
+// Function to tokenize card data
+async function tokenizeCardData(cardData, publicKey, token) {
   try {
-    // Converting publicKey and storing in variable
     const pemFormattedKey = formatPublicKeyToPEM(publicKey);
-    console.log(pemFormattedKey);
 
-    // Prepare payment details as one object with all needed data including holderReference
     const dataToEncrypt = {
-      cardNumber: cardData.cardNumber,
-      expiryMonth: cardData.expiryMonth,
-      expiryYear: cardData.expiryYear,
-      securityCode: cardData.securityCode,
-      holderName: cardData.holderName,
+      ...cardData,
       holderReference: cardData.holderReference,
     };
 
-    // Create an empty key store to manage cryptographic keys
     const keystore = jose.JWK.createKeyStore();
-    // Add a public key in PEM format to the key store
-    // pemFormattedKey: The public key in PEM format to be added
-    // "pem": Indicates the format of the key being added (in this case, PEM)
     let key = await keystore.add(pemFormattedKey, "pem");
 
-    // Finally calling encryption and storing in encrypted
     const encrypted = await jose.JWE.createEncrypt(
       {
         format: "compact",
@@ -118,17 +92,14 @@ app.post("/tokenize", async (req, res) => {
     )
       .update(JSON.stringify(dataToEncrypt))
       .final();
-    console.log(encrypted);
 
-    // I am preparing tokenization payload. I built this based on provided documentation
     const tokenizationPayload = {
-      storeInstrument: true, //
+      storeInstrument: true,
       holderReference: cardData.holderReference,
       encryptedInstrumentDetails: encrypted,
       futureUsage: "CardOnFile",
     };
 
-    // I am preparing a header here. I read that "x-idempotency-key" can be anything. i took it from documentation
     const tokenizationHeaders = {
       accept: "application/json",
       "x-idempotency-key": process.env.X_IDEMPOTENCY_KEY,
@@ -139,7 +110,6 @@ app.post("/tokenize", async (req, res) => {
     const tokenizationUrl =
       "http://localhost:3001/public/payment/instruments/tokenize";
 
-    // Making a POST request to tokenization endpoint with url, payload and header
     const tokenizationResponse = await axios.post(
       tokenizationUrl,
       tokenizationPayload,
@@ -148,21 +118,44 @@ app.post("/tokenize", async (req, res) => {
       }
     );
 
-    console.log(tokenizationResponse);
-
-    // Destructuring data that i receive from tokenization enpoint
     const { id, createdAt, updatedAt, holderId, status } =
       tokenizationResponse.data;
 
-    // Sending it back to client
-    res.json({ id, createdAt, updatedAt, holderId, status });
+    return { id, createdAt, updatedAt, holderId, status };
+  } catch (error) {
+    console.error("Error during tokenization:", error);
+    throw new Error("Error during tokenization");
+  }
+}
+
+// Routes
+
+app.get("/client-configurations", async (req, res) => {
+  try {
+    const clientConfigurations = await fetchClientConfigurations();
+    res.json(clientConfigurations);
+  } catch (error) {
+    console.error("Error fetching client configurations:", error);
+    res.status(500).json({ error: "Error fetching configurations" });
+  }
+});
+
+app.post("/tokenize", async (req, res) => {
+  const { cardData, publicKey, token } = req.body;
+
+  try {
+    const tokenizationResult = await tokenizeCardData(
+      cardData,
+      publicKey,
+      token
+    );
+    res.json(tokenizationResult);
   } catch (error) {
     console.error("Error during tokenization:", error);
     res.status(500).json({ error: "Tokenization failed" });
   }
 });
 
-// My express server is running on port 3000
 app.listen(3000, () => {
   console.log("Server running on port 3000");
 });
